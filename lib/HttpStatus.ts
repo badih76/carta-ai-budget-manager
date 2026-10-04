@@ -1,0 +1,77 @@
+enum HttpStatus {
+    // ClientError
+    BadRequest = 400,
+    Conflict = 409,
+    ExpectationFailed = 417,
+    FailedDependency = 424,
+    Forbidden = 403,
+    Gone = 410,
+    ImATeapot = 418,
+    LengthRequired = 411,
+    Locked = 423,
+    LoginTimeOut = 440,
+    MethodNotAllowed = 405,
+    MisdirectedRequest = 421,
+    NotAcceptable = 406,
+    NotFound = 404,
+    PayloadTooLarge = 413,
+    PaymentRequired = 402,
+    PreconditionFailed = 412,
+    PreconditionRequired = 428,
+    ProxyAuthRequired = 407,
+    RangeNotSatisfiable = 416,
+    RequestHeaderFieldsTooLarge = 431,
+    RequestTimeout = 408,
+    RetryWith = 449,
+    TooManyRequests = 429,
+    Unauthorized = 401,
+    UnavailableForLegalReasons = 451,
+    UnprocessableEntity = 422,
+    UnsupportedMediaType = 415,
+    UpgradeRequired = 426,
+    URITooLong = 414,
+
+    // Info
+    Continue = 100,
+    Processing = 102,
+    SwitchingProtocols = 101,
+
+    // Redirect
+    Found = 302,
+    MovedPermanently = 301,
+    MultipleChoices = 300,
+    NotModified = 304,
+    Permanent = 308,
+    SeeOther = 303,
+    SwitchProxy = 306,
+    Temp = 307,
+    UseProxy = 305,
+
+    // ServerError
+    BadGateway = 502,
+    BandwidthLimitExceeded = 509,
+    GatewayTimeout = 504,
+    HTTPVersionNotSupported = 505,
+    InsufficientStorage = 507,
+    Internal = 500,
+    LoopDetected = 508,
+    NetworkAuthRequired = 511,
+    NotExtended = 510,
+    NotImplemented = 501,
+    ServiceUnavailable = 503,
+    VariantAlsoNegotiates = 506,
+    
+    // Success
+    Accepted = 202,
+    AlreadyReported = 208,
+    Created = 201,
+    IMUsed = 229,
+    MultiStatus = 207,
+    NoContent = 204,
+    NonAuthoritative = 203,
+    OK = 200,
+    PartialContent = 206,
+    ResetContent = 205
+};
+
+export default HttpStatus;

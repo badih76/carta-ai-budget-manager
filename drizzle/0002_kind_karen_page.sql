@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `expenseCateg` varchar(50) DEFAULT 'personal' NOT NULL;

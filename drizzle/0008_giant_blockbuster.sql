@@ -1,0 +1,1 @@
+ALTER TABLE `recurring_expenses` RENAME COLUMN `balance` TO `amount`;
