@@ -71,7 +71,7 @@ export default function BudgetPieChart({ budgets }: BudgetPieChartProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [`$${Number(value || 0).toFixed(2)}`, 'Allocated']}
+                formatter={(value, name) => [`$${Number(value || 0).toFixed(2)}`, name]}
                 contentStyle={{
                   backgroundColor: '#090d16',
                   borderColor: '#1e293b',

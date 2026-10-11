@@ -1,5 +1,6 @@
 import React from 'react'
 import { BudgetCategory } from './budgetPieChart'
+import { Edit } from 'lucide-react'
 
 interface IControlButtonsProps {
     triggerSmartAllocation: () => Promise<void>,
@@ -9,12 +10,13 @@ interface IControlButtonsProps {
     isSavedNotice: boolean,
     handlePullCategoriesChange: () => Promise<void>,
     handleResetBudgetedCategories: () => Promise<void>,
-    handleSaveBudget: () => Promise<void>
+    handleSaveBudget: () => Promise<void>,
+    handleOnEditSelectedBudget: () => void
 }
 
 function ControlButtons({ triggerSmartAllocation, isAllocating, handleReset, 
     savedBudgets, isSavedNotice, handlePullCategoriesChange, 
-    handleResetBudgetedCategories, handleSaveBudget }: IControlButtonsProps) {
+    handleResetBudgetedCategories, handleSaveBudget, handleOnEditSelectedBudget }: IControlButtonsProps) {
   return (
     <div className="w-full flex items-center justify-start p-1.5 bg-slate-200/60 border border-slate-700/60 
         rounded-xl shadow-[inset_2px_2px_4px_rgba(0,0,0,0.3)] backdrop-blur-sm">
@@ -29,7 +31,7 @@ function ControlButtons({ triggerSmartAllocation, isAllocating, handleReset,
                 <button
                     onClick={triggerSmartAllocation}
                     disabled={isAllocating}
-                    className={`p-2 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center w-14 ${
+                    className={`p-2 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center w-14 h-14 ${
                     isAllocating
                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                         : 'bg-gradient-to-b from-indigo-500 to-cyan-500  hover:from-emerald-400/30 hover:to-cyan-400/30 text-white active:scale-95'
@@ -56,31 +58,52 @@ function ControlButtons({ triggerSmartAllocation, isAllocating, handleReset,
         {/* Right Group: Reset & Save Actions (Kept tightly together) */}
         <div className="flex items-center gap-1.5 ml-2">
             {/* Pull Categories Changes Button */}
-            <div className="relative group">
-            <button
-                onClick={handlePullCategoriesChange}
-                className="p-2 text-purple-700 font-extrabold hover:text-white bg-white hover:bg-slate-300 border border-slate-700/60 rounded-lg transition-all cursor-pointer active:scale-95 shadow-sm w-14"
-                aria-label={savedBudgets ? 'Reset to Saved' : 'Reset to Zero'}
-            >
-                {/* Rotate / Undo Icon */}
-                <span className={`inline-block leading-none text-2xl ${isAllocating ? 'animate-spin' : ''}`}>
-                    ⮯
-                </span>
-            </button>
+            {/* <div className="relative group">
+                <button
+                    onClick={handlePullCategoriesChange}
+                    className="p-2 text-purple-700 font-extrabold hover:text-white bg-white hover:bg-slate-300 border border-slate-700/60 rounded-lg transition-all cursor-pointer active:scale-95 shadow-sm w-14"
+                    aria-label={savedBudgets ? 'Reset to Saved' : 'Reset to Zero'}
+                > */}
+                    {/* Rotate / Undo Icon */}
+                    {/* <span className={`inline-block leading-none text-2xl ${isAllocating ? 'animate-spin' : ''}`}>
+                        ⮯
+                    </span>
+                </button> */}
 
-            {/* Tooltip */}
-            <div className="absolute right-0 top-full mt-2 hidden group-hover:flex items-center z-20 pointer-events-none">
-                <div className="bg-slate-950 text-slate-200 text-xs font-medium px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap shadow-xl">
-                {'Pull latest categories'}
+                {/* Tooltip */}
+                {/* <div className="absolute right-0 top-full mt-2 hidden group-hover:flex items-center z-20 pointer-events-none">
+                    <div className="bg-slate-950 text-slate-200 text-xs font-medium px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap shadow-xl">
+                    {'Pull latest categories'}
+                    </div>
                 </div>
-            </div>
+            </div> */}
+
+            {/* Pull Categories Changes Button */}
+            <div className="relative group">
+                <button
+                    onClick={handleOnEditSelectedBudget}
+                    className="p-2 text-purple-700 font-extrabold hover:text-white bg-white hover:bg-slate-300 border border-slate-700/60 rounded-lg transition-all cursor-pointer active:scale-95 shadow-sm w-14 h-14"
+                    aria-label={savedBudgets ? 'Reset to Saved' : 'Reset to Zero'}
+                >
+                    {/* Rotate / Undo Icon */}
+                    <span className={`inline-block leading-none text-2xl m-auto ${isAllocating ? 'animate-spin' : ''}`}>
+                        <Edit />
+                    </span>
+                </button>
+
+                {/* Tooltip */}
+                <div className="absolute right-0 top-full mt-2 hidden group-hover:flex items-center z-20 pointer-events-none">
+                    <div className="bg-slate-950 text-slate-200 text-xs font-medium px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap shadow-xl">
+                    {'Edit Selected Budget'}
+                    </div>
+                </div>
             </div>
 
             {/* Reset Button */}
             <div className="relative group">
             <button
                 onClick={handleResetBudgetedCategories}                
-                className="p-2 text-slate-300 hover:text-white bg-white hover:bg-slate-300 border border-slate-700/60 rounded-lg transition-all cursor-pointer active:scale-95 shadow-sm w-14"
+                className="p-2 text-slate-300 hover:text-white bg-white hover:bg-slate-300 border border-slate-700/60 rounded-lg transition-all cursor-pointer active:scale-95 shadow-sm w-14 h-14"
                 aria-label={savedBudgets ? 'Reset to Saved' : 'Reset to Zero'}
             >
                 {/* Rotate / Undo Icon */}
@@ -103,7 +126,7 @@ function ControlButtons({ triggerSmartAllocation, isAllocating, handleReset,
             <button
                 onClick={handleSaveBudget}
                 disabled={isAllocating || isSavedNotice}
-                className={`p-2.5 font-semibold rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center active:scale-95 w-14 ${
+                className={`p-2.5 font-semibold rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center active:scale-95 w-14 h-14 ${
                 isSavedNotice
                     ? 'bg-emerald-600 text-white'
                     // : 'bg-indigo-400 hover:bg-indigo-300 text-slate-950'

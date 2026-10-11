@@ -231,11 +231,15 @@ export function AddTransactionDialog({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                {Object.entries(type == 'DB' ? expCategoryMap : incCategoryMap).map(([id, name]) => (
-                  <SelectItem key={id} value={id} className="focus:bg-slate-800 focus:text-white">
-                    {name}
-                  </SelectItem>
-                ))}
+                { 
+                  (type == 'DB' && expCategoryMap) || (type == 'CR' && incCategoryMap) ?
+                    Object.entries(type == 'DB' ? expCategoryMap : incCategoryMap).map(([id, name]) => (
+                      <SelectItem key={id} value={id} className="focus:bg-slate-800 focus:text-white">
+                        {name}
+                      </SelectItem>
+                    ))
+                    : null
+                }
               </SelectContent>
             </Select>
           </div>

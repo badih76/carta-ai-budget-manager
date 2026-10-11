@@ -36,6 +36,8 @@ export default function TransactionsPage() {
   const [incomeCategories, setIncomeCategories] = useState<DBIncomeCategory[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>('list');
   const [refetchTrigger, setRefetchTrigger] = useState<number>(0);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [transactionsPromise, setTransactionsPromise] = useState<Promise<any> | null>(null);
 
@@ -52,6 +54,14 @@ export default function TransactionsPage() {
   // Initial account fetching
   useEffect(() => {
     const fetchAccounts = async () => {
+      const checkMobile = () => {
+        const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+          // Regex checking common mobile operating systems
+          return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      };
+      
+      setIsMobile(checkMobile());
+
       const currentUserId = userId != null ? userId : 'USER_ID_HERE'; // Replace with session/auth ID if available
       if (userId == null) setUserId(currentUserId);
 
@@ -150,6 +160,10 @@ export default function TransactionsPage() {
 
   const handleZoneClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
   };
 
   const processFile = async (file: File) => {
@@ -426,7 +440,10 @@ export default function TransactionsPage() {
             incCategoriesMap={incCategoriesMap}
             extractedData={extractedData}
             setExtractedData={setExtractedData}
-            handleAppendToTransactionsEx={handleAppendToTransactionsEx}
+            handleAppendToTransactionsEx={handleAppendToTransactionsEx} 
+            cameraInputRef={cameraInputRef} 
+            handleCameraClick={handleCameraClick}
+            isMobile={isMobile}
           />
 
           {/* Dynamic AI Verification Sandbox */}

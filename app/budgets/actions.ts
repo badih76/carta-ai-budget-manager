@@ -63,7 +63,7 @@ export const getExpenseBudgets = async (userId: string): Promise<IAPIResponse> =
     return response;
 }
 
-export const saveExpenseBudget = async (budgetData: NewDBExpenseBudgets | DBExpenseBudgets, isNew: boolean = false): Promise<IAPIResponse> => {
+export const saveExpenseBudget = async (budgetData: NewDBExpenseBudgets | DBExpenseBudgets, breakdown: string = '', isNew: boolean = false): Promise<IAPIResponse> => {
     let response: IAPIResponse = {
         status: 0,
         data: undefined,
@@ -79,42 +79,17 @@ export const saveExpenseBudget = async (budgetData: NewDBExpenseBudgets | DBExpe
             expenseCateg: budgetData.expenseCateg,
             accountId: budgetData.accountId,
             initAllocatedAmount: budgetData.initAllocatedAmount,
-            breakdown: ''
+            breakdown: breakdown
         }
 
         // create a new list of expenses categories from the assigned expenses categories lits ID (expenseCateg)...
         try {
-            // 1. Get the categories in the assigned expense category list:
-            const expCategResults = await getExpenseCategories(budgetData.userId, budgetData.expenseCateg);
-
-            if(expCategResults.status != HttpStatus.OK)
-                throw new Error(expCategResults.error!);
-
-            // 2. Create a list of budgeted expense categories...
-            let newBudgetedCategs: TExpenseCategBudget[] = [];
-
-            expCategResults.data.map((ec: DBExpenseCategory) => {
-                const budgetedCateg: TExpenseCategBudget = {
-                    id: ec.id,
-                    category: ec.id,
-                    limit: 0,
-                    description: ec.description,
-                    examples: ec.examples ?? ''
-                }
-
-                newBudgetedCategs.push(budgetedCateg);
-            });
-
-            // 3. Stringify the array of budgeted categories to be included in the new budget object which will be inserted...
-            const stringifiedExpenseCateg = JSON.stringify(newBudgetedCategs);
-            newBudget.breakdown = stringifiedExpenseCateg;
-
-            // 4. Insert the new budget into the expense budgets table...
+            // Insert the new budget into the expense budgets table...
             const dbInsertResults = await db.insert(expenseBudgets).values(newBudget).$returningId();
 
             const dbSelectResults = await db.select().from(expenseBudgets).where(eq(expenseBudgets.id, dbInsertResults[0].id));
 
-            // 5. Return the insterted row data...
+            // Return the insterted row data...
             response.status = HttpStatus.OK;
             response.data = dbSelectResults;
 
@@ -130,6 +105,8 @@ export const saveExpenseBudget = async (budgetData: NewDBExpenseBudgets | DBExpe
         try {
             const dbUpdateResults = await db.update(expenseBudgets)
                 .set({
+                    name: budgetData.name,
+                    initAllocatedAmount: budgetData.initAllocatedAmount,
                     breakdown: budgetData.breakdown
                 })
                 .where(and(eq(expenseBudgets.userId, budgetData.userId), eq(expenseBudgets.id, budgetData.id!)));

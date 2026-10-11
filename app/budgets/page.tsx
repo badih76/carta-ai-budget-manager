@@ -16,6 +16,18 @@ import BudgetDetails from './budgetDetails';
 import HorizontalSeparator from './horizontalSeparator';
 import { useUser } from '@clerk/nextjs';
 
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field"
+import { Label } from "@/components/ui/label"
+
+
 interface BudgetCategory {
   id: string;
   category: string;
@@ -81,6 +93,7 @@ export default function BudgetsPage() {
   const [ reasonings, setReasonings ] = useState<Record<string, string>>({});
   const [ expCategories, setExpCategories ] = useState<DBExpenseCategory[]>([]);
   const [ accountsFetched, setAccountsFetched ] = useState<boolean>(false);
+  const [ isEditingBudget, setIsEditingBudget ] = useState<boolean>(false);
 
   // Derived Totals
   const totalBudgeted = budgetedCategories.reduce((sum, item) => sum + (item.limit || 0), 0);
@@ -90,6 +103,16 @@ export default function BudgetsPage() {
     if(isLoaded && isSignedIn)
       setUserId(user.id);
   }, [ isLoaded ]);
+
+  const handleOnEditSelectedBudget = () => {
+    setIsEditingBudget(true);
+    setIsDialogOpen(true);
+
+    setNewBudgetName(selectedBudget?.name!);
+    setSelectedAccount(accounts.find(a => a.id == selectedBudget?.accountId!)!);
+    setNewInitialLimit(selectedBudget?.initAllocatedAmount!);
+    setSelectedCategoryList(selectedBudget?.expenseCateg!);
+  }
 
   useEffect(() => {
     if(!userId || !isSignedIn) return;
@@ -279,30 +302,69 @@ export default function BudgetsPage() {
     reqFieldsErr.categList.visible = !selectedCategoryList || selectedCategoryList === '';
     reqFieldsErr.initAllocation.visible = !newInitialLimit || newInitialLimit.trim() === '';
 
-    let expenseBudget: NewDBExpenseBudgets = {
-      name: newBudgetName,
-      userId: userId!,
-      expenseCateg: selectedCategoryList,
-      accountId: selectedAccount.id,
-      initAllocatedAmount: newInitialLimit
-    }
+    if(!isEditingBudget) {
+      let expenseBudget: NewDBExpenseBudgets = {
+        name: newBudgetName,
+        userId: userId!,
+        expenseCateg: selectedCategoryList,
+        accountId: selectedAccount.id,
+        initAllocatedAmount: newInitialLimit
+      }
+  
+      try {
+        const breakdown: string = JSON.stringify(budgetedCategories);
+        const results = await saveExpenseBudget(expenseBudget, breakdown, true);
+  
+        if(results.status != HttpStatus.OK)
+          throw new Error(results.error!);
+  
+        setSelectedBudget(results.data[0]);
+        setExpenseBudgets((prev) => [...prev, results.data[0]]);
+  
+        const expCategs: TExpenseCategBudget[] = JSON.parse((results.data[0] as DBExpenseBudgets).breakdown!);
+        setBudgetedCategories(expCategs);
+  
+      } catch(error) {
+        // console.log('handleAddBudgetSubmit: ', (error as Error).message);
+        ToastError(`There was a problem. ${(error as Error).message}.`);
+        console.error(error);
+      }
 
-    try {
-      const results = await saveExpenseBudget(expenseBudget, true);
+    } else {
+      let expenseBudget: NewDBExpenseBudgets = {
+        name: newBudgetName,
+        userId: userId!,
+        expenseCateg: selectedCategoryList,
+        accountId: selectedAccount.id,
+        initAllocatedAmount: newInitialLimit,
+        breakdown: selectedBudget?.breakdown,
+        id: selectedBudget?.id
+      }
 
-      if(results.status != HttpStatus.OK)
-        throw new Error(results.error!);
+      try {
+        const results = await saveExpenseBudget(expenseBudget);
 
-      setSelectedBudget(results.data[0]);
-      setExpenseBudgets((prev) => [...prev, results.data[0]]);
-
-      const expCategs: TExpenseCategBudget[] = JSON.parse((results.data[0] as DBExpenseBudgets).breakdown!);
-      setBudgetedCategories(expCategs);
-
-    } catch(error) {
-      // console.log('handleAddBudgetSubmit: ', (error as Error).message);
-      ToastError(`There was a problem. ${(error as Error).message}.`);
-      console.error(error);
+        if(results.status != HttpStatus.OK)
+            throw new Error(results.error!);
+        
+        let newBudget: DBExpenseBudgets = {
+          id: expenseBudget.id!,
+          name: expenseBudget.name,
+          userId: expenseBudget.userId,
+          expenseCateg: expenseBudget.expenseCateg,
+          createdAt: selectedBudget?.createdAt!,
+          updatedAt: selectedBudget?.updatedAt!,
+          accountId: selectedBudget?.accountId!,
+          initAllocatedAmount: expenseBudget.initAllocatedAmount!,
+          breakdown: expenseBudget.breakdown!
+        } 
+        setSelectedBudget(newBudget);
+        // setExpenseBudgets((prev) => [...prev, newBudget]);
+      } catch(error) {
+        // console.log('handleAddBudgetSubmit: ', (error as Error).message);
+        ToastError(`There was a problem. ${(error as Error).message}.`);
+        console.error(error);
+      }
     }
     
     setIsDialogOpen(false);
@@ -424,6 +486,30 @@ export default function BudgetsPage() {
     setIsAllocating(false);
   }
 
+  const handleOnCategoryChecked = (checked: boolean, c: DBExpenseCategory) => {
+    setBudgetedCategories((prevCategories) => {
+      const exists = prevCategories.some((bc) => bc.id === c.id);
+
+      if (checked) {
+        // Avoid duplicate entries
+        if (exists) return prevCategories;
+
+        const newBudgetedCategory: TExpenseCategBudget = {
+          id: c.id,
+          category: c.name,
+          limit: 0,
+          description: c.description,
+          examples: c.examples!,
+        };
+
+        return [...prevCategories, newBudgetedCategory];
+      } else {
+        // Filter out the unchecked item
+        return prevCategories.filter((bc) => bc.id !== c.id);
+      }
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Title, Description & Top Selection Controls */}
@@ -513,6 +599,7 @@ export default function BudgetsPage() {
             handlePullCategoriesChange={handlePullCategoriesChange}
             handleResetBudgetedCategories={handleResetBudgetedCategories}
             handleSaveBudget={handleSaveBudget}
+            handleOnEditSelectedBudget={handleOnEditSelectedBudget}
           />
 
           <BudgetDetails selectedBudget={selectedBudget} totalBudgeted={totalBudgeted} 
@@ -528,7 +615,8 @@ export default function BudgetsPage() {
               >
                 <div className="flex justify-between items-center gap-2">
                   <h3 className="text-sm font-semibold text-slate-200">{                   
-                    expCategories.find(c => c.id == b.category)?.name 
+                    // expCategories.find(c => c.id == b.category)?.name 
+                    b.category
                   }</h3>
 
                   {/* Direct Entry Textbox */}
@@ -583,7 +671,7 @@ export default function BudgetsPage() {
       {/* Add New Budget Dialog Modal */}
       {isDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 space-y-5 shadow-2xl">
+          <div className="w-fit max-w-3xl rounded-xl border border-slate-800 bg-slate-900 p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-white">Add New Budget Target</h2>
               <button
@@ -595,69 +683,96 @@ export default function BudgetsPage() {
             </div>
 
             <form onSubmit={handleAddBudgetSubmit} className="space-y-4">
-              {/* Budget Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-400">Budget Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Fortnightly Household Budget"
-                  value={newBudgetName}
-                  onChange={(e) => setNewBudgetName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
-                <div className={!requiredFieldsError.budgetName.visible ? 'hidden' : ''}>
-                  {requiredFieldsError.budgetName.errorMessage}
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch'>
+                <div>
+                  {/* Budget Name */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Budget Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Fortnightly Household Budget"
+                      value={newBudgetName}
+                      onChange={(e) => setNewBudgetName(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    />
+                    <div className={!requiredFieldsError.budgetName.visible ? 'hidden' : ''}>
+                      {requiredFieldsError.budgetName.errorMessage}
+                    </div>
+                  </div>
+
+                  {/* Target Account */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Applied Account</label>
+                    <select
+                      value={selectedAccount?.id}
+                      onChange={(e) => handleAccountChange(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      {accounts && accounts.length > 0 ? accounts.map((acc) => (
+                        <option key={acc.id} value={acc.id} className="bg-slate-900 text-slate-200">
+                          {acc.name}
+                        </option>
+                      )) : null}
+                    </select>
+                  </div>
+
+                  {/* Expense Category */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Expense Category List</label>
+                    <select
+                      value={selectedCategoryList}
+                      required
+                      onChange={(e) => setSelectedCategoryList(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      {expenseCategoryLists && expenseCategoryLists.length > 0 ? expenseCategoryLists.map((cat, index: number) => {
+                        return (<option key={cat.purpose} value={cat.purpose} className="bg-slate-900 text-slate-200">
+                          {purposeOptions.find(c => c.key == cat.purpose)?.label}
+                        </option>)
+                      }) : null}
+                    </select>
+                  </div>              
+
+                  {/* Initial Budget Amount */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400">Initial Allocation ($)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      placeholder="0.00"
+                      required
+                      value={newInitialLimit}
+                      onChange={(e) => setNewInitialLimit(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm font-mono text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              {/* Target Account */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-400">Applied Account</label>
-                <select
-                  value={selectedAccount?.id}
-                  onChange={(e) => handleAccountChange(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                >
-                  {accounts && accounts.length > 0 ? accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id} className="bg-slate-900 text-slate-200">
-                      {acc.name}
-                    </option>
-                  )) : null}
-                </select>
-              </div>
-
-              {/* Expense Category */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-400">Expense Category List</label>
-                <select
-                  value={selectedCategoryList}
-                  required
-                  onChange={(e) => setSelectedCategoryList(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                >
-                  {expenseCategoryLists && expenseCategoryLists.length > 0 ? expenseCategoryLists.map((cat, index: number) => {
-                    return (<option key={cat.purpose} value={cat.purpose} className="bg-slate-900 text-slate-200">
-                      {purposeOptions.find(c => c.key == cat.purpose)?.label}
-                    </option>)
-                  }) : null}
-                </select>
-              </div>              
-
-              {/* Initial Budget Amount */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-400">Initial Allocation ($)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="10"
-                  placeholder="0.00"
-                  required
-                  value={newInitialLimit}
-                  onChange={(e) => setNewInitialLimit(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm font-mono text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
+                <div className='w-full flex flex-col h-64 min-h-0 rounded-md p-2'>
+                  <p className='text-xs font-semibold text-slate-400'>
+                    Select expenses to includ in the budget:
+                  </p>
+                  <div className='flex-1 overflow-y-auto mt-3 pr-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 bg-slate-300 p-2 rounded-sm'>
+                    <FieldGroup className='w-full'>
+                      { selectedAccount && selectedAccount.id != '' && expCategories.length > 0 ?
+                        expCategories.map((c) => {
+                            if(c.level == 'major')
+                              return (
+                                <Field orientation={"horizontal"} key={c.id}>
+                                  <Checkbox id={c.id} name={c.name} className={"border-black w-3.5 h-3.5 rounded-xs"} 
+                                    checked={budgetedCategories.find(b => b.id == c.id) !== undefined}
+                                    onCheckedChange={(checked) => handleOnCategoryChecked(checked, c)} />
+                                  <Label htmlFor={c.id} className='text-sm'>{c.name}</Label>
+                                </Field>
+                              )
+                          })
+                        : null
+                      }                    
+                    </FieldGroup>
+                  </div>
+                </div>
               </div>
 
               {/* Modal Actions */}
@@ -674,7 +789,7 @@ export default function BudgetsPage() {
                   type="submit"
                   className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold text-sm rounded-lg transition-all shadow-md cursor-pointer"
                 >
-                  Create Budget
+                  { isEditingBudget ? "Save Budget" : "Create Budget" }
                 </button>
               </div>
             </form>
