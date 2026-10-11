@@ -1,0 +1,1 @@
+ALTER TABLE `expense_budgets` RENAME COLUMN `budgetName` TO `name`;

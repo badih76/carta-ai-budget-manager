@@ -1,0 +1,1 @@
+ALTER TABLE `transaction_breakdown` ADD `quatity` int DEFAULT 0 NOT NULL;
