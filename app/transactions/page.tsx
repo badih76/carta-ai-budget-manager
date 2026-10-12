@@ -18,6 +18,8 @@ import NewTransactionsList from './newTransactionsList';
 import { Button } from '@/components/ui/button';
 import { getIncomeCategories } from '../settings/incomeCategoriesEx/actions';
 import { v4 as uuidv4 } from 'uuid';
+import imageCompression from 'browser-image-compression';
+import { useUser } from '@clerk/nextjs';
 
 export default function TransactionsPage() {
   const [isUploading, setIsUploading] = useState(false);
@@ -38,9 +40,15 @@ export default function TransactionsPage() {
   const [refetchTrigger, setRefetchTrigger] = useState<number>(0);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const { user, isLoaded, isSignedIn } = useUser();
 
   const [transactionsPromise, setTransactionsPromise] = useState<Promise<any> | null>(null);
 
+  useEffect(() => {
+    if(user != null && isLoaded && isSignedIn) {
+      setUserId(user.id);
+    }
+  }, [user, isLoaded, isSignedIn])
   // Trigger Server Action fetch after render lifecycle completes
   useEffect(() => {
     if (userId != null && selectedAccount?.id) {
@@ -53,17 +61,23 @@ export default function TransactionsPage() {
 
   // Initial account fetching
   useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+        // Regex checking common mobile operating systems
+        return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+    };
+    
+    setIsMobile(checkMobile());    
+  }, []);
+
+  // Fetch expense and income categories for active purpose
+  useEffect(() => {
     const fetchAccounts = async () => {
-      const checkMobile = () => {
-        const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-          // Regex checking common mobile operating systems
-          return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
-      };
-      
-      setIsMobile(checkMobile());
 
       const currentUserId = userId != null ? userId : 'USER_ID_HERE'; // Replace with session/auth ID if available
       if (userId == null) setUserId(currentUserId);
+
+      console.log('UserID: ', currentUserId, userId);
 
       // console.log('User ID: ', userId, currentUserId);
       
@@ -87,10 +101,7 @@ export default function TransactionsPage() {
     };
 
     fetchAccounts();
-  }, []);
 
-  // Fetch expense and income categories for active purpose
-  useEffect(() => {
     if (userId != null && selectedAccountPurpose) {
       const fetchExpCategories = async () => {
         try {
@@ -173,12 +184,37 @@ export default function TransactionsPage() {
     setExtractedData(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    let fileToProcess: File;
+
+    if (file.type.startsWith('image/')) {
+      try {
+        const options = {
+          maxSizeMB: 1,           // Target file size under 1MB
+          maxWidthOrHeight: 1920,  // Preserves crisp text on long 81-item receipts without pixel bloat
+          useWebWorker: true,      // Keeps the browser UI completely smooth during processing
+        };
+
+        console.log(`Original file size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+        
+        // Perform client-side compression
+        fileToProcess = await imageCompression(file, options);
+
+        console.log(`Compressed file size: ${(fileToProcess.size / 1024 / 1024).toFixed(2)} MB`);
+      } catch (error) {
+        console.error("Image compression failed, falling back to original file:", error);
+        fileToProcess = file; // Safe fallback if an unexpected edge case occurs
+      }
+      
+      formData.append('file', fileToProcess);
+    }
+
     formData.append('userId', userId ?? '');
     formData.append('purpose', selectedAccountPurpose);
 
     const result = await parseReceiptAction(formData);
     let lastestDelta: ExtractedReceipt | null = null;
+
+    console.log('Result: ', result);
 
     if (result && result.success != false && result.data) {
       for await (const delta of readStreamableValue(result.data as any)) {
