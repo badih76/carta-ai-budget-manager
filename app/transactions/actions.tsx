@@ -62,11 +62,15 @@ export async function parseReceiptAction(formData: FormData) {
         const prompt = `
             Analyze this receipt image or invoice document. Extract the vendor name, transaction date, total amount, and all individual line items accurately.
 
-            CRITICAL - Spatial Alignment & Warped Receipt Handling:
-            - Mental Rectification: This receipt image may be physically bent, curved, folded, or twisted, causing printed rows and columns to skew or warp. Emulate human visual reasoning: mentally "straighten" or unwarp the text grid before reading.
-            - Contextual Row Tracing: If a row is curved or slanted due to a fold, trace horizontally across the warped visual axis to ensure the item description, quantity, unit price, and total price all belong to the exact same physical line item. Do not let a physical paper bend cause column drift.
-            - Semantic Association: Use logical human reasoning. If an item name appears on one line and its price is slightly offset because of a crease, associate them based on natural spacing and price totals.
+            CRITICAL - Slanted Baseline & Curved Receipt Tracking:
+            - Non-Linear Row Tracing: The paper receipt is physically curved or bent. Do NOT use a rigid, flat horizontal line to match items to prices. 
+            - Following Text Baselines: Visually trace the physical printed line or imaginary text baseline from the start of the item description on the left across to the price column on the right, following any curve, tilt, or slant in the paper fold.
+            - Row Continuity Verification: If a paper fold causes the right side of a text row to shift higher or lower than the left side, follow that slanted trajectory. Ensure the price you extract strictly belongs to the exact same continuous row block as the item name, preventing column drift caused by paper distortion.
 
+            CRITICAL - Promotional Lines & Modifier Row Handling:
+            - Multi-Buy & Discount Sub-Rows: Australian supermarket receipts frequently contain promotional modifier lines (e.g., bold headers like "HUGGIES BABY WIPES 2 FOR $7" or offset savings lines like "-$4.00", "2 @ $2.00 EACH"). 
+            - These modifier lines are NOT standalone products. Do NOT extract promotional discount lines or multi-buy headers as separate line items. Ignore floating discount amounts when mapping item prices.
+            
             Transaction Type Determination:
             - Set "transType" to "DB" if this document represents an expense, purchase, bill, or money paid out (Debit).
             - Set "transType" to "CR" if this document represents an income, refund, payout, or money received (Credit).
