@@ -211,40 +211,47 @@ export default function TransactionsPage() {
     formData.append('userId', userId ?? '');
     formData.append('purpose', selectedAccountPurpose);
 
-    const result = await parseReceiptAction(formData);
-    let lastestDelta: ExtractedReceipt | null = null;
+    try {
+      const result = await parseReceiptAction(formData);
+      let lastestDelta: ExtractedReceipt | null = null;
 
-    console.log('Result: ', result);
+      console.log('Result: ', result);
 
-    if (result && result.success != false && result.data) {
-      for await (const delta of readStreamableValue(result.data as any)) {
-        if (delta) {
-          setExtractedData(delta as ExtractedReceipt);
-          lastestDelta = delta as ExtractedReceipt;
+      if(result && result.success == false) 
+        throw new Error(result.error);
+
+      if (result && result.success != false && result.data) {
+        for await (const delta of readStreamableValue(result.data as any)) {
+          if (delta) {
+            setExtractedData(delta as ExtractedReceipt);
+            lastestDelta = delta as ExtractedReceipt;
+          }
         }
-      }
 
-      if (lastestDelta) {
-        const finalDelta = lastestDelta;
-        // console.log('Extract: ', finalDelta);
-        setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
-      }
-    } else {
-      let streamableValue: any[] | ExtractedReceipt | null = null;
-
-      for await (const delta of readStreamableValue(result?.data as any)) {
-        if (delta) {
-          streamableValue = delta as ExtractedReceipt;
-          lastestDelta = delta as ExtractedReceipt;
+        if (lastestDelta) {
+          const finalDelta = lastestDelta;
+          // console.log('Extract: ', finalDelta);
+          setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
         }
-      }
+      } else {
+        let streamableValue: any[] | ExtractedReceipt | null = null;
 
-      if (lastestDelta) {
-        const finalDelta = lastestDelta;
-        // console.log('Extract: ', finalDelta);
-        // setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
+        for await (const delta of readStreamableValue(result?.data as any)) {
+          if (delta) {
+            streamableValue = delta as ExtractedReceipt;
+            lastestDelta = delta as ExtractedReceipt;
+          }
+        }
+
+        if (lastestDelta) {
+          const finalDelta = lastestDelta;
+          // console.log('Extract: ', finalDelta);
+          // setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
+        }
+        alert(`Parsing error: Unknown error occurred`);
       }
-      alert(`Parsing error: Unknown error occurred`);
+    } catch(error) {
+      ToastError(`There was an issue parsing your receipt: ${(error as Error).message}.`);      
     }
 
     setIsUploading(false);

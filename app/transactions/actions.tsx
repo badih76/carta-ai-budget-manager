@@ -28,6 +28,9 @@ interface ICreateTransactionProps {
 
 export async function parseReceiptAction(formData: FormData) {
     const streamable = createStreamableValue();
+    let success: boolean = true;
+    let error: string = '';
+    
 
     try {
         const userId = formData.get('userId') as string;
@@ -124,12 +127,14 @@ export async function parseReceiptAction(formData: FormData) {
             } catch (streamError: any) {
                 console.error("Stream compilation failed:", streamError);
                 streamable.error(streamError);
+                error = streamError;
+                success = false;
             } finally {
                 streamable.done();
             }
         })();
 
-        return { success: true, data: streamable.value };
+        // return { success: true, data: streamable.value };
     } catch (error: any) {
         console.error('Receipt Extraction Error:', error);
         
@@ -141,12 +146,18 @@ export async function parseReceiptAction(formData: FormData) {
                 success: false, 
                 error: error.message || 'Failed to process document' 
             });
+            error = error.message || 'Failed to process document';
+            success = false;
         } catch (streamFailError) {
             // The stream timed out and closed before we could send the error
             console.error("Could not send error to client: stream already closed.");
+            error = streamFailError || "Could not send error to client: stream already closed.";
+            success = false;
         }
         
         streamable.done();
+
+        return { success, data: streamable.value, error };
     } 
 }
 
