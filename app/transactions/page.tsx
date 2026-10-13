@@ -190,7 +190,7 @@ export default function TransactionsPage() {
       try {
         const options = {
           maxSizeMB: 1,           // Target file size under 1MB
-          maxWidthOrHeight: 1920,  // Preserves crisp text on long 81-item receipts without pixel bloat
+          maxWidthOrHeight: 2560,  // Preserves crisp text on long 81-item receipts without pixel bloat
           useWebWorker: true,      // Keeps the browser UI completely smooth during processing
         };
 
@@ -221,17 +221,26 @@ export default function TransactionsPage() {
         throw new Error(result.error);
 
       if (result && result.success != false && result.data) {
+        let lastestDelta: ExtractedReceipt | null = null;
+        let lastUpdateTime = 0;
+
         for await (const delta of readStreamableValue(result.data as any)) {
           if (delta) {
-            setExtractedData(delta as ExtractedReceipt);
             lastestDelta = delta as ExtractedReceipt;
+            const now = Date.now();
+            
+            // THROTTLE: Only update state every 150ms to keep mobile UI smooth
+            if (now - lastUpdateTime > 150) {
+              setExtractedData(delta as ExtractedReceipt);
+              lastUpdateTime = now;
+            }
           }
         }
 
+        // Ensure the final absolute state is committed when stream completes
         if (lastestDelta) {
-          const finalDelta = lastestDelta;
-          // console.log('Extract: ', finalDelta);
-          setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
+          setExtractedData(lastestDelta);
+          setTransactionsEx((prevReceipts) => [...prevReceipts, lastestDelta!]);
         }
       } else {
         let streamableValue: any[] | ExtractedReceipt | null = null;
@@ -248,7 +257,7 @@ export default function TransactionsPage() {
           // console.log('Extract: ', finalDelta);
           // setTransactionsEx((prevReceipts) => [...prevReceipts, finalDelta]);
         }
-        alert(`Parsing error: Unknown error occurred`);
+        ToastError(`Parsing error: Unknown error occurred`);
       }
     } catch(error) {
       ToastError(`There was an issue parsing your receipt: ${(error as Error).message}.`);      
