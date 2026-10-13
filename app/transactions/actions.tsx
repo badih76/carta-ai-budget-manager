@@ -134,7 +134,7 @@ export async function parseReceiptAction(formData: FormData) {
             }
         })();
 
-        // return { success: true, data: streamable.value };
+        return { success: true, data: streamable.value };
     } catch (error: any) {
         console.error('Receipt Extraction Error:', error);
         
