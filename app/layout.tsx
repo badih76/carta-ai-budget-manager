@@ -21,7 +21,7 @@ import HomePage from './home/page';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata = {
-  title: 'ClarityFi // AI Budget Manager',
+  title: 'Carta-AI Legder // AI Budget Manager',
   description: 'Intelligent financial tracking built with Next.js',
 };
 

@@ -180,6 +180,8 @@ export default function TransactionsPage() {
   const processFile = async (file: File) => {
     if (!file) return;
 
+    console.log(file.type, file.name);
+
     setIsUploading(true);
     setExtractedData(null);
 
@@ -205,6 +207,9 @@ export default function TransactionsPage() {
         fileToProcess = file; // Safe fallback if an unexpected edge case occurs
       }
       
+      formData.append('file', fileToProcess);
+    } else {
+      fileToProcess = file;
       formData.append('file', fileToProcess);
     }
 
@@ -356,7 +361,7 @@ export default function TransactionsPage() {
           userId: userId!,
           accountId: selectedAccount?.id!,
           details: tEx.vendorName,
-          amount: tEx.items.reduce((acc, item) => acc + item.totalItemPrice, 0).toString(),
+          amount: Number(tEx.items.reduce((acc, item) => acc + item.totalItemPrice, 0).toFixed(2)).toString(),
           type: tEx.transType,
           category: tEx.transMajorCateg,
           notes: '',

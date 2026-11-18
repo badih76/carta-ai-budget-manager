@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { DBTransactions } from '@/src/drizzle/schema';
 import { TransactionTable } from './transactionsTable';
 import HttpStatus from '@/lib/HttpStatus';
+import TransactionsFilter from './transactionsFilter';
 
 interface ITransactionsListProps {
   transactionsPromise: Promise<{ status: number; data: DBTransactions[]; error?: string | undefined | null}>;
@@ -22,6 +23,7 @@ function TransactionsList({ transactionsPromise, userId, categoriesMap }: ITrans
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/20 text-center text-slate-400">
+      <TransactionsFilter />
       {transactions && transactions.length > 0 ? (
         <TransactionTable
           data={transactions}

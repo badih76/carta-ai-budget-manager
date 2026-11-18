@@ -19,6 +19,9 @@ export type ActionStreamResponse = {
   error?: string;
 };
 
+const model = process.env.GEMINI_AI_MODEL_CATEGORIES_GENERATION ?? "gemini-3.5-flash"
+const providerOptionsSettings = model == 'gemini-2.5-flash' ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
+
 export async function generateSubCategoriesAction(
   purposeKey: string,
   majorCategory: AIIncomeCategory,
@@ -81,8 +84,16 @@ export async function generateSubCategoriesAction(
     `;
 
     (async () => {
-      const { partialObjectStream } = await streamObject({
-        model: google('gemini-2.5-flash'),
+      const t0 = performance.now();
+
+      const { partialObjectStream, usage, providerMetadata } = await streamObject({
+        model: google(model),
+        providerOptions: {
+          google: { 
+              thinkingConfig:  
+                providerOptionsSettings
+            }
+        },
         schema: DetailedCategorySchema,
         prompt: dynamicPrompt,
       });
@@ -93,6 +104,10 @@ export async function generateSubCategoriesAction(
         }
       }
       stream.done();
+
+      console.log("total ms", performance.now() - t0);
+      console.log("usage", await usage);
+      console.log("meta", (await providerMetadata)?.google);
     })();
 
     return { success: true, output: stream.value };
@@ -156,8 +171,16 @@ export async function generatePurposeCategoriesActionEx(
     `;
 
     (async () => {
-      const { partialObjectStream } = await streamObject({
-        model: google('gemini-2.5-flash'),
+      const t0 = performance.now();
+
+      const { partialObjectStream, usage, providerMetadata } = await streamObject({
+        model: google(model),
+        providerOptions: {
+          google: { 
+            thinkingConfig: 
+              providerOptionsSettings
+          }
+        },
         schema: DetailedCategorySchema,
         prompt: dynamicPrompt,
       });
@@ -168,6 +191,9 @@ export async function generatePurposeCategoriesActionEx(
         }
       }
       stream.done();
+      console.log("total ms", performance.now() - t0);
+      console.log("usage", await usage);
+      console.log("meta", (await providerMetadata)?.google);
     })();
 
     return { success: true, output: stream.value };

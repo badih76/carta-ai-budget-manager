@@ -14,6 +14,7 @@ import { logAIUsage } from '@/lib/aiUtils';
 
 type Role = 'system' | 'user' | 'assistant' | 'tool';
 const role = 'user';
+const model = process.env.GEMINI_AI_MODEL_RECEIPT_PARSING ?? "gemini-2.5-flash"
 
 interface ICreateTransactionProps {
     userId: string,
@@ -98,7 +99,7 @@ export async function parseReceiptAction(formData: FormData) {
                 // FIX 2: Correct streamObject parameters mapping to respect Core vs Provider boundaries
                 const { partialObjectStream, usage } = await streamObject({
                     // Use model-specific tools or option parameters provided by Vercel's Google package
-                    model: google(process.env.GEMINI_AI_MODEL ?? 'gemini-2.5-flash'),
+                    model: google(process.env.GEMINI_AI_MODEL_RECEIPT_PARSING ?? 'gemini-2.5-flash'),
                     schema: ReceiptSchema,
                     messages: [
                         {

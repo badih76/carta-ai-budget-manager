@@ -13,12 +13,88 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { uuid } from 'uuidv4';
 import { purposePrompts } from './types';
 import { unionAll } from 'drizzle-orm/mysql-core';
+import { SessionsClient } from '@google-cloud/dialogflow-cx';
+import { struct } from "pb-util"
 
 export type ActionStreamResponse = {
   success: boolean;
   output?: any;
   error?: string;
 };
+
+const model: string = process.env.GEMINI_AI_MODEL_CATEGORIES_GENERATION ?? "gemini-3.5-flash"; // 'gemini-2.5-flash';
+const providerOptionsSettings = model == 'gemini-2.5-flash' ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
+
+export async function generateBudgetStreamCX(
+  purpose: string, 
+  catType: string, 
+  catLevel: string, 
+  catCount: number,
+  existing: any | null = null,
+  parentCategory: string | null = null,
+): Promise<ReadableStream> {
+  const client = new SessionsClient({
+    projectId: process.env.GCP_PROJECT_ID,
+    credentials: {
+        client_email: process.env.GCP_CLIENT_EMAIL,
+        private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    },
+    apiEndpoint: 'us-central1-dialogflow.googleapis.com',
+  });
+
+  const projectId = process.env.GCP_CX_PROJECT_ID!;
+  const location = 'us-central1';
+  const agentId = process.env.GCP_CX_AGENT_ID!;
+  const sessionId = Math.random().toString(36).substring(7);
+
+  const sessionPath = client.projectLocationAgentSessionPath(
+    projectId,
+    location,
+    agentId,
+    sessionId
+  );
+
+  // 1. Fetch response from GCP Conversational Agent
+  const [response] = await client.detectIntent({
+    session: sessionPath,
+    queryInput: {
+      text: {
+        text: `Generate major expense categories for this budgeting purpose: ${purpose}. Return ONLY valid JSON array.`,
+      },
+      languageCode: 'en',
+    },
+    queryParams: {
+      parameters: struct.encode({
+        budget_purpose: purpose,
+        category_type: catType,
+        category_level: catLevel,
+        categories_count: catCount,
+        parent_category: parentCategory ?? null,
+        // Names only keeps the prompt small; see tips below
+        existing_categories: existing ? existing.map((c: any) => c.name) : null,
+      }),
+    }
+  });
+
+  const agentReply = response.queryResult?.responseMessages?.[0]?.text?.text?.[0] || '[]';
+
+  // 2. Create a ReadableStream to pipe data smoothly to the client
+  const encoder = new TextEncoder();
+  
+  return new ReadableStream({
+    async start(controller) {
+      // We simulate smooth word/character streaming chunks for a typewriter effect
+      const chunkSize = 300; // characters per chunk
+      for (let i = 0; i < agentReply.length; i += chunkSize) {
+        const chunk = agentReply.slice(i, i + chunkSize);
+        controller.enqueue(encoder.encode(chunk));
+        // Small artificial delay to create a smooth visual typing flow (~10ms)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      controller.close();
+    },
+  });
+}
 
 export async function generateSubCategoriesAction(
   purposeKey: string,
@@ -82,8 +158,16 @@ export async function generateSubCategoriesAction(
     `;
 
     (async () => {
-      const { partialObjectStream } = await streamObject({
-        model: google('gemini-2.5-flash'),
+      const t0 = performance.now();
+
+      const { partialObjectStream, usage, providerMetadata } = await streamObject({
+        model: google(model),
+        providerOptions: {
+          google: { 
+              thinkingConfig:  
+                providerOptionsSettings
+            }
+        },
         schema: DetailedCategorySchema,
         prompt: dynamicPrompt,
       });
@@ -94,6 +178,10 @@ export async function generateSubCategoriesAction(
         }
       }
       stream.done();
+
+      console.log("total ms", performance.now() - t0);
+      console.log("usage", await usage);
+      console.log("meta", (await providerMetadata)?.google);
     })();
 
     return { success: true, output: stream.value };
@@ -157,8 +245,16 @@ export async function generatePurposeCategoriesActionEx(
     `;
 
     (async () => {
-      const { partialObjectStream } = await streamObject({
-        model: google('gemini-2.5-flash'),
+      const t0 = performance.now();
+
+      const { partialObjectStream, usage, providerMetadata } = await streamObject({
+        model: google(model),
+        providerOptions: {
+          google: { 
+            thinkingConfig: 
+              providerOptionsSettings
+          }
+        },
         schema: DetailedCategorySchema,
         prompt: dynamicPrompt,
       });
@@ -169,6 +265,10 @@ export async function generatePurposeCategoriesActionEx(
         }
       }
       stream.done();
+
+      console.log("total ms", performance.now() - t0);
+      console.log("usage", await usage);
+      console.log("meta", (await providerMetadata)?.google);
     })();
 
     return { success: true, output: stream.value };

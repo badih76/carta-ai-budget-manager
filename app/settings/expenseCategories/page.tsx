@@ -2,7 +2,7 @@
 
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { readStreamableValue } from "@ai-sdk/rsc";
-import { generatePurposeCategoriesActionEx, 
+import { generateBudgetStreamCX, generatePurposeCategoriesActionEx, 
   saveExpenseCategories, saveMajorExpenseCategoriesV2 } from './actions';
 import { Loader2, Table, Sparkles, Plus, } from 'lucide-react';
 import { AIExpenseCategory, UAIExpenseCategory } from './categoriesListSchema';
@@ -153,6 +153,61 @@ export default function CategoriesPage(): React.ReactElement {
     }
     setIsMajorAiLoading(false);
   };
+
+  //   const handleGenerateMajor = async (): Promise<void> => {
+  //   setIsMajorAiLoading(true);
+
+  //   console.log("Trying conversational CX agent");
+
+  //   try {
+  //     // const response = await generatePurposeCategoriesActionEx(selectedPurpose, majorCategories);
+  //     const response = await generateBudgetStreamCX(selectedPurpose, "expense", "major", 10, majorCategories);
+
+  //     const reader = response.getReader();
+  //     const decoder = new TextDecoder();
+
+  //     while (true) {
+  //       const { done, value } = await reader.read();
+  //       if (done) break;
+        
+  //       const chunk = decoder.decode(value, { stream: true });
+  //       console.log("Chunk: ", chunk);
+
+  //       // setMessage((prev) => prev + chunk);
+  //       if (Array.isArray(chunk)) {
+  //         console.log("##### Chunk is an array");
+  //         // 1. Strict filter: require name, description, and examples array
+  //         const validatedList = (chunk as any[])
+  //           .filter(
+  //             (item): item is UAIExpenseCategory =>
+  //               item &&
+  //               typeof item.name === 'string' &&
+  //               item.name.trim().length > 0 &&
+  //               typeof item.description === 'string' &&
+  //               item.description.trim().length > 0 &&
+  //               Array.isArray(item.examples) &&
+  //               item.examples.length > 0
+  //           )
+  //           .map((item) => ({ ...item, isSaved: false }));
+
+  //         if (majorAddNew === 'append') {
+  //           console.log('---> Setting State Append')
+  //           setMajorCategories((prev) =>
+  //             returnSortedStreamedCategoriesList(prev, validatedList)
+  //           );
+  //         } else if (validatedList.length > 0) {
+  //           console.log('---> Setting State Fresh')
+  //           setMajorCategories(validatedList);
+  //         }
+  //       }
+  //     }
+  //   } catch (err) {
+  //     console.error('Error parsing AI major categories:', err);
+  //   }
+    
+  //   setIsMajorAiLoading(false);
+  // };
+
 
   const handleAddMajorCategory = (): void => {
     const nameTrimmed = majorCustomName.trim();

@@ -132,7 +132,11 @@ function NewTransactionsList({ extractedData, expCategories, incCategories, unsa
                         ) : null}
                         </div>
                         <div className='w-full text-right pt-2 border-double border-t-white border-4 border-l-0 border-r-0 border-b-0'>
-                            <span className='mr-4 font-bold text-lg text-indigo-600'>Total: ${ extractedData && extractedData.items ? extractedData.items.reduce((acc, item) => acc + item.totalItemPrice, 0) : 0}</span>
+                            <span className='mr-4 font-bold text-lg text-indigo-600'>
+                                Total: ${ extractedData && extractedData.items 
+                                ? Number(extractedData.items.reduce((acc, item) => acc + item.totalItemPrice, 0).toFixed(2))
+                                : 0}
+                            </span>
                         </div>
                     </div>
                 ))

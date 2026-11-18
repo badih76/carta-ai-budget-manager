@@ -228,7 +228,11 @@ export function AddTransactionDialog({
             <label className="text-xs font-mono text-slate-400">Category</label>
             <Select value={category} onValueChange={(val) => setCategory(val as string)}>
               <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200 h-[38px] w-full">
-                <SelectValue placeholder="Select a category" />
+                <SelectValue placeholder="Select a category">
+                  { 
+                    (type == 'DB' ? expCategoryMap : incCategoryMap)[category]
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
                 { 
@@ -246,8 +250,6 @@ export function AddTransactionDialog({
 
           {/* New Balance & Effective Date Grid */}
           <div className="grid grid-cols-2 gap-3">
-            
-
             
           </div>
 
