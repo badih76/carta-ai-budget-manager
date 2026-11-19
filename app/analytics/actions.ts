@@ -11,12 +11,12 @@ import {
   expenseCategories,
   incomeCategories
 } from '@/src/drizzle/schema';
-import { eq, and, gte, sql, desc } from 'drizzle-orm';
+import { eq, and, gte, sql, desc, between, sum } from 'drizzle-orm';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google'; // Or your preferred AI provider
 import { IAPIResponse } from '@/interfaces/interfaces';
 import HttpStatus from '@/lib/HttpStatus';
-import { unionAll } from 'drizzle-orm/mysql-core';
+import { alias, unionAll } from 'drizzle-orm/mysql-core';
 
 
 // {"id":"39b0492d-b534-4dd5-b9a1-bef5bdcd4b82","category":"Discretionary & Lifestyle","limit":553.5},
@@ -45,7 +45,45 @@ export async function askLedgerAI(query: string, userId: string = 'demo-user') {
   return { answer: text };
 }
 
-export async function fetchAnalyticsData(accountId: string, dateRange: string, userId: string = 'demo-user') {
+export async function fetchAnalyticsData(
+    accountId: string, 
+    dateRange: string, 
+    userId: string = 'demo-user',
+    dateFrom: string | null = null,
+    dateTo: string | null = null
+  ) {
+  
+  let usedDateFrom = '';
+  let usedDateTo = '';
+
+  if(dateFrom == null) {
+    const now = new Date();   
+    
+    if(now.getDate() < 15) {
+      const usedFromDate = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+      usedDateFrom = `${usedFromDate.getFullYear()}-${String(usedFromDate.getMonth() + 1).padStart(2, '0')}-${String(usedFromDate.getDate()).padStart(2, '0')}`;
+    } else {
+      const usedFromDate = new Date(now.getFullYear(), now.getMonth(), 15);
+      usedDateFrom = `${usedFromDate.getFullYear()}-${String(usedFromDate.getMonth() + 1).padStart(2, '0')}-${String(usedFromDate.getDate()).padStart(2, '0')}`;
+    }
+  } else {
+    usedDateFrom = dateFrom;
+  }
+
+  if(dateTo == null) {
+    const now = new Date();
+
+    if(now.getDate() < 15) {
+      const useToDate = new Date(now.getFullYear(), now.getMonth(), 15);
+      usedDateTo = `${useToDate.getFullYear()}-${String(useToDate.getMonth() + 1).padStart(2, '0')}-${String(useToDate.getDate()).padStart(2, '0')}`;
+    } else {
+      const useToDate = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+      usedDateTo = `${useToDate.getFullYear()}-${String(useToDate.getMonth() + 1).padStart(2, '0')}-${String(useToDate.getDate()).padStart(2, '0')}`;
+    }
+  } else {
+    usedDateTo = dateTo;
+  }
+
   // 1. Fetch Current Cash Balance
   const accountQuery = accountId === 'all' 
     ? db.select({ balance: sql<number>`sum(${accounts.balance})` }).from(accounts).where(eq(accounts.userId, userId))
@@ -82,9 +120,11 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
   // 3. Category Breakdowns (Major vs Subcategory)
   const categoryData = await db.select({
     name: transactions.category,
+    cName: expenseCategories.name,
     value: sql<number>`SUM(${transactions.amount})`,
   })
   .from(transactions)
+  .innerJoin(expenseCategories, eq(expenseCategories.id, transactions.category))
   .where(and(eq(transactions.userId, userId), eq(transactions.type, 'DB')))
   .groupBy(transactions.category);
 
@@ -100,6 +140,7 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
 
   const budgetRes = await budgetQuery;
   const budgetRow = budgetRes[0];
+//  console.log("budgetRes[0]: ", budgetRes[0]);
 
   let totalBudgeted = Number(budgetRow?.initAmount || 0);
   let parsedBreakdown: Array<{ id: string, category: string, limit: number }> = [];
@@ -117,6 +158,7 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
     category: transactionBreakdown.category,
     categoryName: expenseCategories.name,     // Join to get the actual name
     spent: sql<number>`SUM(${transactionBreakdown.totalPrice})`,
+    major: expenseCategories.parent
   })
   .from(transactions)
   .innerJoin(transactionBreakdown, eq(transactions.id, transactionBreakdown.transactionId))
@@ -128,28 +170,36 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
   ))
   .groupBy(transactionBreakdown.category);
 
-  // const query = db.select({
-  //   category: transactionBreakdown.category,
-  //   categoryName: expenseCategories.name,     // Join to get the actual name
-  //   spent: sql<number>`SUM(${transactionBreakdown.totalPrice})`,
-  // })
-  // .from(transactions)
-  // .innerJoin(transactionBreakdown, eq(transactions.id, transactionBreakdown.transactionId))
-  // .leftJoin(expenseCategories, eq(transactionBreakdown.category, expenseCategories.id)) // Ensure this matches your schema relations
-  // .where(and(
-  //   eq(transactions.userId, userId), 
-  //   eq(transactions.type, 'DB'),
-  //   accountId !== 'all' ? eq(transactions.accountId, accountId) : sql`1=1`
-  // ))
-  // .groupBy(transactionBreakdown.category).toSQL();
-  // console.log('Qyery: ', query);
+  const tranCateg = alias(expenseCategories, 'tranCateg');
+  const majorCateg = alias(expenseCategories, 'majorCateg');
+
+  const budgetItemsMajor = await db
+  .select({
+    totalSpent: sum(transactions.amount),
+    // Or use this if you want a JS number instead of string | null:
+    // totalAmount: sql<number>`SUM(${transactions.amount})`.mapWith(Number),
+    categId: majorCateg.id,
+    categName: majorCateg.name,
+  })
+  .from(transactions)
+  .innerJoin(tranCateg, eq(tranCateg.id, transactions.category))
+  .innerJoin(majorCateg, eq(tranCateg.parent, majorCateg.id))
+  .where(
+    and(
+      eq(transactions.userId, 'user_3JerRNqJmhqtxBkjTjSR4Tb21bd'),
+      between(
+        transactions.effectDate, new Date(usedDateFrom), new Date(usedDateTo)
+      )
+    )
+  )
+  .groupBy(majorCateg.id, majorCateg.name);
 
   // 5. Calculate Variances mapping parsed breakdown to actuals
   let totalActual = 0;
 
   const budgetItems = parsedBreakdown.map(b => {
     // Match based on the ID stored in the breakdown array
-    const actualRecord = actuals.find(a => a.category === b.category);
+    const actualRecord = actuals.find(a => a.major === b.id);
     const actualSpent = actualRecord?.spent || 0;
     const actualNum = Number(actualSpent);
     const limitNum = Number(b.limit);
@@ -167,6 +217,34 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
     };
   });
 
+  const budgetItemsMajorDetailed = parsedBreakdown.map(b => {
+    // Match based on the ID stored in the breakdown array
+    const actualRecord = budgetItemsMajor.find(a => a.categId === b.id);
+    const actualSpent = budgetItemsMajor.find(a => a.categId === b.id)?.totalSpent;
+    const actualNum = actualSpent ? Number(actualSpent) : 0;
+    const limitNum = Number(b.limit);
+    const utilization = limitNum > 0 && actualNum > 0 ? (actualNum / limitNum) * 100 : 0;
+
+    if(b.category == 'Medicals' || b.category == 'Clothing and Footware') {
+      // console.log("budgetItemsMajor: ", budgetItemsMajor);
+      console.log("Returned Major Details: ", {
+        categName: b.category, actualRecord, actualSpent, actualNum, limitNum, utilization
+      });
+    }
+    
+    totalActual += actualNum;
+
+    return {
+      // Use the joined name from actuals, fallback to the string in the breakdown, or a default
+      category: actualRecord?.categName || b.category || 'Unknown Category',
+      id: actualRecord?.categId || b.id,
+      limit: limitNum,
+      actual: actualNum,
+      utilization: Math.round(utilization),
+      status: utilization >= 100 ? 'Over Budget' : utilization >= 80 ? 'Warning' : 'On Track'
+    };
+  });
+
   const overallUtilization = totalBudgeted > 0 ? Math.round((totalActual / totalBudgeted) * 100) : 0;
 
   return {
@@ -176,7 +254,7 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
       income: Number(c.income), 
       expense: Number(c.expense) 
     })),
-    majorCategories: categoryData.map((c, i) => ({ name: c.name, value: Number(c.value), color: ['#6366f1', '#8b5cf6', '#ec4899', '#06b6d4', '#10b981'][i % 5] })),
+    majorCategories: categoryData.map((c, i) => ({ name: c.cName, value: Number(c.value), color: ['#6366f1', '#8b5cf6', '#ec4899', '#06b6d4', '#10b981'][i % 5] })),
     subCategories: subCategoryData.map((c, i) => ({ name: c.name, value: Number(c.value), parent: c.parent, color: ['#06b6d4', '#8b5cf6', '#ec4899', '#3b82f6', '#10b981'][i % 5] })),
     budgetIntelligence: {
       items: budgetItems,
@@ -184,7 +262,8 @@ export async function fetchAnalyticsData(accountId: string, dateRange: string, u
       totalActual,
       overallUtilization
     },
-    actuals
+    actuals,
+    budgetItemsMajorDetailed
   };
 }
 

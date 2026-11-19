@@ -23,6 +23,7 @@ import {
 import { getCategoryMap } from './actions';
 import HttpStatus from '@/lib/HttpStatus';
 import { ToastError } from '@/lib/sonnerUtils';
+import { useUser } from '@clerk/nextjs';
 
 // Define this outside or inside your component
 const gridColsMap: Record<number, string> = {
@@ -37,6 +38,14 @@ export default function AnalyticsPage() {
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [dateRange, setDateRange] = useState('30d');
   const [isLoading, setIsLoading] = useState(true);
+  const [ budgetItemsMajor, setBudgetItemsMajor ] = useState<{
+    category: string;
+    id: string;
+    limit: number;
+    actual: number;
+    utilization: number;
+    status: string;
+  }[]>([]);
   
   // Existing States...
   const [cashFlowData, setCashFlowData] = useState<any[]>([]);
@@ -63,7 +72,17 @@ export default function AnalyticsPage() {
   const [ budgetBreakdownColCount, setBudgetBreakdownColCount ] = useState<number>(3);
 
   // userId
+  const { user, isLoaded, isSignedIn } = useUser();
   const [userId, setUserId] = useState<string | null>('');
+
+  useEffect(() => {
+    console.log(user?.id, isLoaded, isSignedIn);
+
+    if(user != null && isLoaded && isSignedIn) {
+      console.log(user.id);
+      setUserId(user.id);
+    }
+  }, [user, isLoaded, isSignedIn]);
 
   useEffect(() => {
     async function loadData() {
@@ -86,7 +105,9 @@ export default function AnalyticsPage() {
         let ecMap: Record<string, string> | null = null;
 
         try {
+          console.log("UserId: ", userId);
           const result = await getCategoryMap(userId!);
+          console.log("Result Data: ", result);
           if (result.status !== HttpStatus.OK) throw new Error(result.error!);
           setExpCategoriesMap(result.data);
           ecMap = result.data;
@@ -95,6 +116,8 @@ export default function AnalyticsPage() {
           ToastError(`There was an issue fetching categories map. ${(error as Error).message}.`);
           setExpCategoriesMap(null);
         }
+
+        console.log(data.majorCategories);
 
         const budgetDataWithNames = data.budgetIntelligence.items.map(item => {
           let bwn = {
@@ -107,7 +130,11 @@ export default function AnalyticsPage() {
           };
           
           return bwn;
-        })
+        });        
+
+        setBudgetItemsMajor(data.budgetItemsMajorDetailed);
+
+        console.log("budgetDataWithNames: ", budgetDataWithNames);
         
         // Mock fallback if DB is empty for demo rendering
         setBudgetData(budgetDataWithNames || [
@@ -126,8 +153,10 @@ export default function AnalyticsPage() {
         setIsLoading(false);
       }
     }
-    loadData();
-  }, [selectedAccount, dateRange]);
+    
+    if(userId && userId != null && userId != "")
+      loadData();
+  }, [ selectedAccount, dateRange, userId ]);
 
   useEffect(() => {
     console.log("BudgetData: ", budgetData);
@@ -285,10 +314,10 @@ export default function AnalyticsPage() {
                 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-400 scrollbar-track-transparent">
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider">Sector Utilization</h4>
                 <div className={`space-y-4 w-full grid ${gridColsMap[budgetBreakdownColCount] || 'grid-cols-1'} gap-4`}>
-                  {budgetData.map((item) => (
+                  {budgetItemsMajor.map((item) => (
                     <div key={item.category} className="space-y-1.5">
                       <div className="flex justify-between text-xs">
-                        <span className="font-medium text-slate-200">{item.cName}</span>
+                        <span className="font-medium text-slate-200">{item.category}</span>
                         <span className={item.utilization > 100 ? "text-rose-400 font-bold" : "text-green-400 font-bold"}>
                           {Math.round(item.utilization)}%
                         </span>
