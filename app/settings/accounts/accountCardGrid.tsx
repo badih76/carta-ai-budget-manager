@@ -1,14 +1,17 @@
 import { DBAccount } from '@/src/drizzle/schema'
-import { Pencil } from 'lucide-react'
+import { Loader2, Pencil, Scale, Scale3D } from 'lucide-react'
 import React, { JSX } from 'react'
 
 interface IAccountCardGridProps {
     accounts: DBAccount[],
     handleOpenEdit: (acc: DBAccount, index: number) => void,
-    getAccountIcon: (typeStr: string) => JSX.Element
+    getAccountIcon: (typeStr: string) => JSX.Element,
+    handleBalance: (accId: string) => void,
+    isBalancing: boolean,
+    balancedAcc: string
 }
 
-function AccountCardGrid({ accounts, handleOpenEdit, getAccountIcon }: IAccountCardGridProps) {
+function AccountCardGrid({ accounts, handleOpenEdit, getAccountIcon, handleBalance, isBalancing, balancedAcc }: IAccountCardGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map((acc, index) => (
@@ -21,6 +24,15 @@ function AccountCardGrid({ accounts, handleOpenEdit, getAccountIcon }: IAccountC
                 {acc.type} Account
               </span>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleBalance(acc.id)}
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  {
+                    isBalancing && balancedAcc == acc.id 
+                      ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Scale className="h-5 w-5" />) 
+                  }
+                </button>
                 <button
                   onClick={() => handleOpenEdit(acc, index)}
                   className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"

@@ -188,7 +188,7 @@ export default function AnalyticsPage() {
       });
     }
   };
-
+  
   const simulatedBurn = Math.round((baseMonthlyBurn * (1 + expenseAdjustment / 100)) + (newHireCount * 5000));
   const projectedRunwayMonths = simulatedBurn > 0 ? (currentCashBalance / simulatedBurn).toFixed(1) : '∞';
   
@@ -379,13 +379,13 @@ export default function AnalyticsPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-              <div className="lg:col-span-2 h-72 w-full bg-slate-500 border border-slate-800/80 rounded-xl p-4">
+            <div className="grid grid-cols-1 items-center">
+              <div className="lg:col-span-2 h-96 w-full bg-slate-500 border border-slate-800/80 rounded-xl p-2">
                 {chartMode === 'donut' ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={categoryView === 'major' ? majorCategoryData : subCategoryData} 
-                        cx="50%" cy="50%" innerRadius={65} outerRadius={95} paddingAngle={5} 
+                        cx="50%" cy="50%" innerRadius={35} outerRadius={150} paddingAngle={0} 
                         dataKey="value" onClick={(entry) => setSelectedCategorySlice(entry.name!)}>
                         {(categoryView === 'major' ? majorCategoryData : subCategoryData).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} stroke="#0f172a" strokeWidth={1} />

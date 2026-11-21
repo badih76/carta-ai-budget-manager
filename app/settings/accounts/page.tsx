@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { createAccount, getAccounts, updateAccount } from './actions';
+import { balanceAccount, createAccount, getAccounts, updateAccount } from './actions';
 import { DBAccount } from '@/src/drizzle/schema';
 import {
   Plus,
@@ -55,6 +55,8 @@ export default function AccountsPage(): React.ReactElement {
   const [ editingAccoountIndex, setEditingAccountIndex ] = useState<number | null>(null);
   const [ selectedExpensesPurpose, setSelectedExpensesPurpose ] = useState<string>('');
   const [ selectedIncomePurpose, setSelectedIncomePurpose ] = useState<string>('');
+  const [ isBalancing, setIsBalancing ] = useState<boolean>(false);
+  const [ balancedAcc, setBalancedAcc ] = useState<string>('');
 
   const [ userId, setUserId ] = useState<string | null>(null);
 
@@ -244,6 +246,38 @@ export default function AccountsPage(): React.ReactElement {
     }
   };
 
+    const handleAccountBalance = async (accId: string) => {
+      setIsBalancing(true);
+      setBalancedAcc(accId);
+
+      try {
+        const balance = await balanceAccount(userId!, accId);
+
+        if(balance.status != HttpStatus.OK)
+          throw new Error(balance.error!);
+
+        // The new balance is in the returned data. Get it and update the account balance...
+        const newAccounts = accounts.map(acc => {
+          if(acc.id == accId) {
+            acc.balance = balance.data.newBalance
+          }
+
+          return acc;
+        });
+
+        setAccounts(newAccounts);
+
+        ToastMessage('Your account has been successfully rebalanced.');
+
+      } catch(error) {
+        ToastError(`There was a problem rebalancing your account. ${(error as Error).message}.`);
+      }
+
+      setIsBalancing(false);
+      setBalancedAcc('');
+    }
+
+
   const purposeMap = new Map(
       purposeOptions.map((item) => [item.key, item.label])
   );
@@ -262,7 +296,14 @@ export default function AccountsPage(): React.ReactElement {
       </div>
 
       {/* Account Cards Grid */}
-      <AccountCardGrid accounts={accounts} handleOpenEdit={handleOpenEdit} getAccountIcon={getAccountIcon} />
+      <AccountCardGrid 
+        accounts={accounts} 
+        handleOpenEdit={handleOpenEdit} 
+        getAccountIcon={getAccountIcon} 
+        handleBalance={handleAccountBalance}
+        isBalancing={isBalancing}
+        balancedAcc={balancedAcc}
+      />
 
       <div className='w-full flex justify-end items-center'>
         <Dialog

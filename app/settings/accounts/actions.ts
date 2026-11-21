@@ -4,8 +4,8 @@
 import { IAPIResponse } from '@/interfaces/interfaces';
 import HttpStatus from '@/lib/HttpStatus';
 import { db } from '@/src/drizzle/';
-import { accounts, NewDBAccount } from '@/src/drizzle/schema';
-import { eq, and } from 'drizzle-orm';
+import { accounts, NewDBAccount, transactions } from '@/src/drizzle/schema';
+import { eq, and, sum } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -144,4 +144,62 @@ export async function updateAccount(
     console.error('Failed to update account in MySQL:', error);
     return { success: false, error: 'Database update failed.' };
   }
+}
+
+export const balanceAccount = async (userId: string, accountId: string): Promise<IAPIResponse> => {
+  let response: IAPIResponse = {
+    status: 0,
+    data: undefined,
+    message: '',
+    error: null
+  }
+
+  try {
+    // get the sum of CR transactions of this user's account
+    const crTransactions = await db.select({
+      totalCr: sum(transactions.amount)
+    }).from(transactions)
+    .where(and(eq(transactions.userId, userId), eq(transactions.accountId, accountId), eq(transactions.type, 'CR')));
+
+    // get the sum of DB transactions of this user's account
+    const dbTransactions = await db.select({
+      totalDb: sum(transactions.amount)
+    }).from(transactions)
+    .where(and(eq(transactions.userId, userId), eq(transactions.accountId, accountId), eq(transactions.type, 'DB')));
+
+    let totalCr = 0;
+    if(crTransactions.length > 0 && crTransactions[0].totalCr)
+      totalCr = parseFloat(crTransactions[0].totalCr);
+    else 
+      totalCr = 0;
+
+    let totalDb = 0;
+    if(dbTransactions.length > 0 && dbTransactions[0].totalDb)
+      totalDb = parseFloat(dbTransactions[0].totalDb);
+    else 
+      totalDb = 0;
+
+    console.log({ totalCr, totalDb });
+
+    // Calculate the new account balance
+    const newBalance = totalCr - totalDb;
+
+    // Update the account balance
+    const updateBalance = await db.update(accounts)
+      .set({
+        balance: newBalance.toString()
+      }).where(and(eq(accounts.userId, userId), eq(accounts.id, accountId)));
+
+    // Check affected / changed rows count. Must be 1
+    console.log({ affected: updateBalance[0].affectedRows, changed: updateBalance[0].changedRows, serverStatus: updateBalance[0].serverStatus })
+    
+    response.data = { newBalance: newBalance };
+    response.status = HttpStatus.OK;
+
+  } catch(error) {
+    response.error = (error as Error).message;
+    response.status = HttpStatus.Internal;
+  }
+
+  return response;
 }
