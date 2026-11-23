@@ -8,6 +8,7 @@ import HttpStatus from '@/lib/HttpStatus';
 import { ToastError } from '@/lib/sonnerUtils';
 import { getTransactionBreakdown } from './actions';
 import { DBTransactionBreakdown } from '@/src/drizzle/schema';
+import { BanknoteX } from 'lucide-react';
 
 // TypeScript Interface matching your Drizzle MySQL schema
 export interface Transaction {
@@ -21,6 +22,7 @@ export interface Transaction {
   category: string;
   notes?: string | null;
   balance: string | number;
+  details: string | null;
 }
 
 interface TransactionTableProps {
@@ -76,8 +78,8 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
         return 0;
       };
 
-      const timeA = getTime(a.effectDate);
-      const timeB = getTime(b.effectDate);
+      const timeA = getTime(a.createDate);
+      const timeB = getTime(b.createDate);
 
       if (typeof timeA === 'number' && typeof timeB === 'number') {
         return timeB - timeA;
@@ -122,6 +124,9 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
         <thead className="border-b border-slate-800 bg-slate-900/80 text-xs uppercase text-slate-400 font-mono tracking-wider">
           <tr>
             <th scope="col" className="py-3.5 px-4 font-semibold">
+              Create Date
+            </th>
+            <th scope="col" className="py-3.5 px-4 font-semibold">
               Effective Date
             </th>
             <th scope="col" className="py-3.5 px-4 font-semibold">
@@ -133,11 +138,17 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
             <th scope="col" className="py-3.5 px-4 font-semibold">
               Type
             </th>
+            <th scope="col" className="py-3.5 px-4 font-semibold">
+              Vendor
+            </th>
             <th scope="col" className="py-3.5 px-4 font-semibold text-right">
               Amount
             </th>
             <th scope="col" className="py-3.5 px-4 font-semibold text-right">
               Balance
+            </th>
+            <th scope="col" className="py-3.5 px-4 font-semibold text-right">
+              Cancel
             </th>
           </tr>
         </thead>
@@ -162,6 +173,10 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
                       )}
                       onClick={() => handleOnTransClick(tx.id)}
                     >
+                      {/* Create Date */}
+                      <td className="py-3 px-4 whitespace-nowrap font-mono text-xs text-white">
+                        {formatDate(tx.createDate)}
+                      </td>
                       {/* Effective Date */}
                       <td className="py-3 px-4 whitespace-nowrap font-mono text-xs text-white">
                         {formatDate(tx.effectDate)}
@@ -196,6 +211,11 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
                         </span>
                       </td>
 
+                      {/* Vendor */}
+                      <td className="py-3 px-4 font-medium text-white">
+                        {tx.details}
+                      </td>
+
                       {/* Amount */}
                       <td
                         className={`py-3 px-4 text-right font-mono font-semibold whitespace-nowrap ${
@@ -219,6 +239,13 @@ export function TransactionTable({ data, userId, categoriesMap, isFetchingTransa
                         )}
                       >
                         {formatCurrency(tx.balance)}
+                      </td>
+
+                      {/* Cancel */}
+                      <td
+                        className='py-3 px-4 text-right font-mono whitespace-nowrap font-bold flex justify-center'                         
+                      >
+                        <BanknoteX className='hover:text-red-400'/>
                       </td>
                     </tr>
 
