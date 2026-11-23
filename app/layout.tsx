@@ -65,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={cn("h-full bg-slate-950 text-slate-100 antialiased", "font-sans", inter.variable)}>
       <head>
         <script defer src="https://cloud.umami.is/script.js" 
-          ata-website-id={process.env.UMAMI_WEBSITE_ID}>            
+          data-website-id={process.env.UMAMI_WEBSITE_ID}>            
         </script>
       </head>
       <body className="flex h-full overflow-hidden font-sans">
